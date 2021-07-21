@@ -24,3 +24,6 @@ Commands:
 When your server is first added, no time or channel is set.
 In this instance, you will receive posts in your system-channel, or failing that in the first available text channel.
 The quotes will default to 00:00 UTC
+
+
+An SQL and a bash file are provided for the purposes of ensuring a schema and running the bot.
