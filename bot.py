@@ -24,21 +24,40 @@ client = discord.Client()
 quote = ""
 
 
-@client.event
-async def on_guild_join(guild):
+def try_add_guild(guild):
+    """
+    Attempt insert, or ignore if already exists
+    :param guild:
+    :return:
+    """
     connection = open_connection()
-    cursor = connection.execute(f"""INSERT INTO SERVER (server_id, channel_id, post_time)
-    VALUES ({guild.id}, NULL, NULL);""")
-    print([row for row in cursor])
+    connection.execute(f"""INSERT OR IGNORE INTO SERVER (server_id, channel_id, post_time)
+        VALUES ({guild.id}, NULL, NULL);""")
     connection.commit()
     connection.close()
+
+
+def get_all_guilds():
+    """
+    Fetch all guilds
+    :return: list of guilds
+    """
+    connection = open_connection()
+    cursor = connection.execute(f"""SELECT server_id, channel_name, post_time FROM SERVER;""")
+    connection.commit()
+    connection.close()
+    return [row for row in cursor]
+
+
+@client.event
+async def on_guild_join(guild):
+    try_add_guild(guild)
 
 
 @client.event
 async def on_guild_remove(guild):
     connection = open_connection()
     cursor = connection.execute(f"""DELETE FROM SERVER WHERE server_id = {guild.id};""")
-    print([row for row in cursor])
     connection.commit()
     connection.close()
 
@@ -71,7 +90,6 @@ async def on_message(message):
                 if minute < 0 or minute > 59:
                     return await message.reply("minute outside of 0 to 59 range")
 
-
                 connection = open_connection()
                 minute = ((minute // 5)*5)  # round minute to nearest five, going down, for simplicity
                 connection.execute(f"UPDATE SERVER SET post_time = '{hour}:{minute}' WHERE server_id = {message.guild.id}")
@@ -102,10 +120,10 @@ async def on_message(message):
 
             elif command.lower() in ("help", "h"):
 
-                return await message.reply("Commands are only accessible to the server owner. \n"
+                return await message.reply("Commands are only accessible to the guild owner. \n"
                                            "Commands: \n"
                                            "- **channel** - set the channel that quotes are posted in. provide the name of the channel as the argument. \n\n"
-                                           "- **time** - set the time (in UTC) that the quote is published in the server. \n"
+                                           "- **time** - set the time (in UTC) that the quote is published in the guild. \n"
                                            "provide with two arguments, hour and minute as numbers 0-23 and 0-59. \n"
                                            "Values for minutes may be rounded to the nearest five. \n\n"
                                            "Prefix for commands is "+PREFIX)
@@ -125,6 +143,7 @@ def get_quote():
         if i == random_line:
             print(row[0])
             return row[0]
+
 
 def get_channel(server_id, channel_id):
     guild = client.get_guild(server_id)
@@ -164,8 +183,6 @@ async def check_time():
         if channel is not None:
             await channel.send(get_quote())
 
-
-
     if (time.hour == 0 and ((time.minute // 5)*5) == 0):
         cursor = connection.execute("""SELECT server_id, channel_id, post_time FROM SERVER;""")
         # print([row for row in cursor])
@@ -179,9 +196,18 @@ async def check_time():
     connection.close()
 
 
-
 @client.event
 async def on_ready():
+    # ensure all guilds are registered
+    registered_guild_ids = set([reg.id for reg in get_all_guilds()])
+    all_guilds = set([guild.id for guild in client.guilds])
+
+    unregistered_guilds = all_guilds.difference(registered_guild_ids)
+    for unreg in unregistered_guilds:
+        try_add_guild(unreg)
+        print(f"Added {unreg.name}")
+    print("Finished checking for unregistered guilds!")
+
     check_time.start()
     print("Ready to spread the word of the Emperor!")
 
