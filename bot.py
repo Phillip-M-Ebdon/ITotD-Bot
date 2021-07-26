@@ -24,6 +24,10 @@ client = discord.Client()
 quote = ""
 
 
+def leading_zero(value):
+    return f"0{value}"[-2:]
+
+
 def try_add_guild(guild):
     """
     Attempt insert, or ignore if already exists
@@ -43,10 +47,11 @@ def get_all_guilds():
     :return: list of guilds
     """
     connection = open_connection()
-    cursor = connection.execute(f"""SELECT server_id, channel_name, post_time FROM SERVER;""")
+    cursor = connection.execute(f"""SELECT server_id, channel_id, post_time FROM SERVER;""")
+    guilds = [row for row in cursor]
     connection.commit()
     connection.close()
-    return [row for row in cursor]
+    return guilds
 
 
 @client.event
@@ -94,7 +99,7 @@ async def on_message(message):
                 minute = ((minute // 5)*5)  # round minute to nearest five, going down, for simplicity
                 connection.execute(f"UPDATE SERVER SET post_time = '{hour}:{minute}' WHERE server_id = {message.guild.id}")
 
-                await message.reply(f"Set quote time to: approx {hour}:{minute} UTC")
+                await message.reply(f"Set quote time to: approx {leading_zero(hour)}:{leading_zero(minute)} UTC")
                 connection.commit()
                 connection.close()
                 return
@@ -199,7 +204,7 @@ async def check_time():
 @client.event
 async def on_ready():
     # ensure all guilds are registered
-    registered_guild_ids = set([reg.id for reg in get_all_guilds()])
+    registered_guild_ids = set([reg[0] for reg in get_all_guilds()])
     all_guilds = set([guild.id for guild in client.guilds])
 
     unregistered_guilds = all_guilds.difference(registered_guild_ids)
