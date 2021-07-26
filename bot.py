@@ -36,7 +36,7 @@ def try_add_guild(guild):
     """
     connection = open_connection()
     connection.execute(f"""INSERT OR IGNORE INTO SERVER (server_id, channel_id, post_time)
-        VALUES ({guild.id}, NULL, NULL);""")
+        VALUES ({guild}, NULL, NULL);""")
     connection.commit()
     connection.close()
 
@@ -56,7 +56,7 @@ def get_all_guilds():
 
 @client.event
 async def on_guild_join(guild):
-    try_add_guild(guild)
+    try_add_guild(guild.id)
 
 
 @client.event
@@ -210,7 +210,7 @@ async def on_ready():
     unregistered_guilds = all_guilds.difference(registered_guild_ids)
     for unreg in unregistered_guilds:
         try_add_guild(unreg)
-        print(f"Added {unreg.name}")
+        print(f"Added {client.get_guild(unreg).name}")
     print("Finished checking for unregistered guilds!")
 
     check_time.start()
