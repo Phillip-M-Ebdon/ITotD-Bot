@@ -189,7 +189,7 @@ async def check_time():
             await channel.send(get_quote())
 
     if (time.hour == 0 and ((time.minute // 5)*5) == 0):
-        cursor = connection.execute("""SELECT server_id, channel_id, post_time FROM SERVER;""")
+        cursor = connection.execute("""SELECT server_id, channel_id, post_time FROM SERVER WHERE post_time IS NULL;""")
         # print([row for row in cursor])
         for row in cursor:
             print(row)
